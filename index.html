@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Student Practical Group Calendar</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: lightgray;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background-color: red;
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 { font-size: 2.2rem; font-weight: 300; margin-bottom: 6px; }
+    .header p { opacity: 0.95; }
+
+    .group-selector {
+      background: #f8f9fa;
+      padding: 16px 24px;
+      border-bottom: 1px solid #dee2e6;
+      text-align: center;
+    }
+
+    .group-selector label {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-right: 12px;
+    }
+
+    .group-selector select {
+      padding: 10px 14px;
+      font-size: 15px;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      min-width: 160px;
+    }
+
+    .calendar-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #dee2e6;
+    }
+
+    .nav-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .month-year { font-size: 1.25rem; font-weight: 600; color: #2c3e50; }
+
+    /* Calendar grid */
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 1px;
+      background: #dee2e6;
+      margin: 20px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .day-header {
+      background: #495057;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* Fixed-size day cells (keeps each day same height) */
+    .day {
+      background: white;
+      height: 140px;         /* <-- fixed height for each day cell */
+      padding: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .day:hover {
+      background: #f8f9fa;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      z-index: 5;
+    }
+
+    .day-number { font-weight: 600; margin-bottom: 6px; color: #495057; }
+
+    .other-month { color: #adb5bd; background: #f8f9fa; }
+
+    .today {
+      background: #fff3cd !important;
+      border: 2px solid #ffc107;
+    }
+
+    .session {
+      display: block;
+      color: white;
+      padding: 4px 6px;
+      margin: 2px 0;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .session:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.12); }
+
+    /* Format + Module-based classes - used by JS: e.g. "lecture bio1103" */
+    /* BIO1103 */
+    .lecture.bio1103 { background-color: #EC271B; color: white}
+    .lab.bio1103     { background-color: #F48322; color: #111; }
+
+    /* BIO1314 (placeholder/green lectures) */
+    .lecture.bio1314 { background-color: #B22D6E; color: white} /* green placeholder */
+    .lab.bio1314     { background-color: #3C368E; color: white }
+
+    /* Class tests / feedback still styled if present (but removed from legend) */
+    .assessment.bio1103 { background-color: #FFF500; color: #111}
+    .assessment.bio1314 { background-color: #0064B1; color: white;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+      100% { transform: scale(1); }
+    }
+
+    /* modal */
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    .modal.show { display: block; }
+    .modal-content {
+      background-color: white;
+      margin: 8% auto;
+      padding: 22px;
+      border-radius: 12px;
+      width: 92%;
+      max-width: 640px;
+      box-shadow: 0 18px 40px rgba(0,0,0,0.25);
+      transform: translateY(-20px);
+      opacity: 0;
+      transition: all 0.24s ease;
+    }
+    .modal.show .modal-content { transform: translateY(0); opacity: 1; }
+    .close { float: right; font-size: 26px; font-weight: 700; cursor: pointer; color: #777; }
+    .modal h2 { color: #2c3e50; margin-bottom: 10px; }
+
+    .modal-info { display: grid; gap: 10px; }
+    .info-row { display:flex; gap:12px; align-items:center; padding:8px; background:#f8f9fa; border-radius:8px; }
+    .info-label { min-width: 110px; font-weight:600; color:#495057; }
+    .staff-badge { display:inline-block; background:#007bff; color:white; padding:4px 10px; border-radius:12px; font-weight:600; }
+    .module-badge { display:inline-block; padding:4px 10px; border-radius:12px; font-weight:600; color:white; }
+
+    .module-bio1103 { background: #EC271B; }  /* blue */
+    .module-bio1314 { background: #B22D6E; }  /* green */
+
+    /* Legend (only lectures & labs per your request) */
+    .legend { display:flex; justify-content:center; gap:18px; padding:18px; background:#f8f9fa; flex-wrap:wrap; border-top:1px solid #eee; }
+    .legend-item { display:flex; gap:8px; align-items:center; font-weight:600; color:#333; }
+    .legend-color { width:24px; height:16px; border-radius:4px; border:1px solid rgba(0,0,0,0.05); }
+
+    /* legend colors matching classes above */
+    .legend-color.bio1103-lecture        { background:#EC271B; }
+    .legend-color.bio1103-lab            { background:#F48322; }
+    .legend-color.bio1314-lecture        { background:#B22D6E; }
+    .legend-color.bio1314-lab            { background:#3C368E; }
+    .legend-color.bio1314-assessment     { background:#0064B1;  }
+    .legend-color.bio1103-assessment     { background:#FFF500;  }
+
+    .no-sessions { text-align:center; padding:40px; color:#6c757d; font-style:italic; }
+
+    @media (max-width: 900px) {
+      .day { height: 110px; }
+      .group-selector select { width: 100%; max-width: 240px; }
+    }
+
+    @media (max-width: 560px) {
+      .header h1 { font-size: 1.4rem; }
+      .day { height: 100px; padding:6px; }
+      .session { font-size:10px; padding:3px 5px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BIO1103 & BIO1314 Course Calendar</h1>
+      <p>Select your practical group & pathway from the dropdowns to view your timetable</p>
+    </div>
+
+    <div class="group-selector">
+      <label for="groupSelect">Select Your Practical Group:</label>
+      <select id="groupSelect" onchange="updateCalendar()">
+        <option value="">Choose a group...</option>
+        <option value="PR01">PR01</option>
+        <option value="PR02">PR02</option>
+        <option value="PR03">PR03</option>
+        <option value="PR04">PR04</option>
+        <option value="PR05">PR05</option>
+        <option value="PR06">PR06</option>
+      </select>
+    </div>
+
+<div class="group-selector">
+      <label for="pathwaySelect">Select Your Degree Pathway:</label>
+      <select id="pathwaySelect" onchange="updateCalendar()">
+        <option value="">Choose a pathway...</option>
+        <option value="Biochem">Biochemistry</option>
+        <option value="BiolSci">Biological Sciences</option>
+        <option value="Biomed">Biomedical Sciences</option>
+        <option value="Human">Human Biology</option>
+        <option value="Marine">Marine Biology</option>
+        <option value="MedChem">Medicinal Chemistry</option>
+        <option value="Micro">Microbiology</option>
+        <option value="Zoo">Zoology</option>
+        </select>
+    </div>
+
+    <div class="calendar-nav">
+      <button class="nav-btn" onclick="previousMonth()">← Previous</button>
+      <div class="month-year" id="monthYear"></div>
+      <button class="nav-btn" onclick="nextMonth()">Next →</button>
+    </div>
+
+    <!-- LEGEND: only lectures & labs (class tests & feedback removed from legend) -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-color bio1103-lecture"></div>
+        <span>BIO1103 Lectures</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color bio1103-lab"></div>
+        <span>BIO1103 Labs</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color bio1103-assessment"></div>
+        <span>BIO1103 Assessments</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color bio1314-lecture"></div>
+        <span>BIO1314 Lectures</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color bio1314-lab"></div>
+        <span>BIO1314 Labs</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-color bio1314-assessment"></div>
+        <span>BIO1314 Assessments</span>
+      </div>
+    </div>
+
+    <div class="calendar" id="calendar"></div>
+
+    <div class="no-sessions" id="noSessions" style="display: none;">
+      Please select a practical group & pathway to view your timetable.
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="sessionModal" class="modal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <span class="close" aria-label="Close">&times;</span>
+      <h2>Session Details</h2>
+      <div class="modal-info">
+        <div class="info-row"><div class="info-label">Date & Time:</div><div class="info-value" id="modalDateTime"></div></div>
+        <div class="info-row"><div class="info-label">Session:</div><div class="info-value" id="modalLecture"></div></div>
+        <div class="info-row"><div class="info-label">Location:</div><div class="info-value" id="modalLocation"></div></div>
+        <div class="info-row"><div class="info-label">Staff:</div><div class="info-value"><span id="modalStaff" class="staff-badge"></span></div></div>
+        <div class="info-row"><div class="info-label">Module:</div><div class="info-value"><span id="modalModule" class="module-badge"></span></div></div>
+        <div class="info-row"><div class="info-label">Format:</div><div class="info-value" id="modalFormat"></div></div>
+        <div class="info-row"><div class="info-label">Week:</div><div class="info-value" id="modalWeek"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- your original sessionData preserved exactly (unchanged) ---
+    const sessionData = [
+      // Week 1
+      {week: 1, date: '2025-09-15', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Introduction to Microbiology/Essay Instructions', staff: 'JC/CMcC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 1, date: '2025-09-15', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Chemistry I: The Chemical Context of Life', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 1, date: '2025-09-15', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Biomed', module: 'BIO1103'},
+      {week: 1, date: '2025-09-15', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Human', module: 'BIO1103'},
+      {week: 1, date: '2025-09-16', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Micro', module: 'BIO1103'},
+      {week: 1, date: '2025-09-16', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Biochem', module: 'BIO1103'},
+      {week: 1, date: '2025-09-16', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'MedChem', module: 'BIO1103'},
+      {week: 1, date: '2025-09-17', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Microbial Evolution', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 1, date: '2025-09-17', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Chemistry II: Water and Bonding', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 1, date: '2025-09-18', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'BiolSci', module: 'BIO1103'},
+      {week: 1, date: '2025-09-18', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Marine', module: 'BIO1103'},
+      {week: 1, date: '2025-09-18', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Induction and Health & Safety Training/Spotting opportunties', staff: 'AM/JC/LS', format: 'Lab', group: 'Zoo', module: 'BIO1103'},
+      {week: 1, date: '2025-09-19', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'History of Microbiology', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 1, date: '2025-09-19', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Chemistry III: More about molecules', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      // Week 2
+      {week: 2, date: '2025-09-22', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Microscopy', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 2, date: '2025-09-22', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Chemistry IV: All about pH and Buffers', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 2, date: '2025-09-22', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+      {week: 2, date: '2025-09-22', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+      {week: 2, date: '2025-09-23', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+      {week: 2, date: '2025-09-23', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+      {week: 2, date: '2025-09-24', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Microbial Cell Structure 1', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 2, date: '2025-09-24', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Chemistry V: Thermodynamics and biomolecules', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 2, date: '2025-09-25', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+      {week: 2, date: '2025-09-25', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+      {week: 2, date: '2025-09-26', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Microbial Cell Structure 2', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 2, date: '2025-09-26', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Chemistry VI: Spectroscopy', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      // Week 3
+      {week: 3, date: '2025-09-29', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Techniques in Microbiology', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 3, date: '2025-09-29', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Cells I: Overview of the Cell', staff: 'MTS', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 3, date: '2025-09-29', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+      {week: 3, date: '2025-09-29', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+      {week: 3, date: '2025-09-30', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+      {week: 3, date: '2025-09-30', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+      {week: 3, date: '2025-10-01', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Bacterial Growth Kinetics', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 3, date: '2025-10-01', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Molecular Biology I: Introduction to nucleic acids', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 3, date: '2025-10-02', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Molar Calculations', staff: 'CA', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+      {week: 3, date: '2025-10-02', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Bioskill up', staff: 'MTS', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+      {week: 3, date: '2025-10-03', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Control of Microbial Growth', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 3, date: '2025-10-03', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Molecular Biology II: DNA & RNA: The basics', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      // Week 4
+      {week: 4, date: '2025-10-06', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Microbial Diversity', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 4, date: '2025-10-06', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Molecular Biology III: Isolation and biophysical properties of DNA', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 4, date: '2025-10-06', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+      {week: 4, date: '2025-10-06', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR04', module: 'BIO1314'},
+      {week: 4, date: '2025-10-07', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+      {week: 4, date: '2025-10-07', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR05', module: 'BIO1314'},
+      {week: 4, date: '2025-10-08', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Microbial Diversity', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 4, date: '2025-10-08', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Molecular Biology IV: Mechanism of DNA replication', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 4, date: '2025-10-09', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+      {week: 4, date: '2025-10-09', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR06', module: 'BIO1314'},
+      {week: 4, date: '2025-10-10', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Microbial Diversity', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 4, date: '2025-10-10', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Molecular Biology V: DNA organisation in Chromosomes', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      // Week 5
+      {week: 5, date: '2025-10-13', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Microbial Growth', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 5, date: '2025-10-13', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Molecular Biology VI: Transcription of DNA into mRNA', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 5, date: '2025-10-13', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+      {week: 5, date: '2025-10-13', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR01', module: 'BIO1314'},
+      {week: 5, date: '2025-10-14', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+      {week: 5, date: '2025-10-14', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR02', module: 'BIO1314'},
+      {week: 5, date: '2025-10-15', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Microbial Growth', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 5, date: '2025-10-15', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Molecular Biology VII: Information transfer and the triplet Genetic Code', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 5, date: '2025-10-16', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'AA Titration', staff: 'EH', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+      {week: 5, date: '2025-10-16', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Measuring Cells', staff: 'JR', format: 'Lab', group: 'PR03', module: 'BIO1314'},
+      {week: 5, date: '2025-10-17', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Microbial Growth', staff: 'JC', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 5, date: '2025-10-17', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Molecular Biology VIII: Mechanisms of translation & protein biosynthesis', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      // Week 6
+      {week: 6, date: '2025-10-20', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Bacterial Genetics 1: DNA replication and expression', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 6, date: '2025-10-20', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Molecular Biology IX: DNA Mutations and their Consequences', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 6, date: '2025-10-20', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+      {week: 6, date: '2025-10-20', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+      {week: 6, date: '2025-10-21', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+      {week: 6, date: '2025-10-21', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+      {week: 6, date: '2025-10-22', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Bacterial Genetics 2: Regulation of bacterial cellular processes', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 6, date: '2025-10-22', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Molecular Biology X: DNA Repair Mechanisms', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      {week: 6, date: '2025-10-23', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+      {week: 6, date: '2025-10-23', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Practical report writing I/Data Analysis', staff: 'LA/GB', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+      {week: 6, date: '2025-10-24', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Bacterial Genetics 3: Genetic mutations', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+      {week: 6, date: '2025-10-24', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'FEEDBACK SESSION 1: PREPARATION FOR CLASS TEST 1', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+      
+       //week 7 - READING WEEK
+       {week: 7, date: '2025-10-29', time: '10:00 - 11:00', location: 'Online', day: 'F', lecture: 'CLASS TEST 1', staff: 'NA', format: 'Assessment', group: 'All', module: 'BIO1314'},
+       {week: 7, date: '2025-10-31', time: '12:00 noon', location: 'NA', day: 'F', lecture: 'ESSAY SUBMISSION', staff: 'CMcC', format: 'Assessment', group: 'All', module: 'BIO1314'},
+            {week: 7, date: '2025-10-31', time: '11:00 - 12:00', location: 'Online', day: 'F', lecture: 'CLASS TEST 1', staff: 'NA', format: 'Assessment', group: 'All', module: 'BIO1103'},
+            
+            //Week 8
+            {week: 8, date: '2025-11-03', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Bacterial Genetics 4: Recombinant DNA technology', staff: 'JM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 8, date: '2025-11-03', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Biochemistry I: Protein Structure and Function I (Amino Acids)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 8, date: '2025-11-03', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR01', module: 'BIO1314'},
+            {week: 8, date: '2025-11-03', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+            {week: 8, date: '2025-11-04', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR02', module: 'BIO1314'},
+            {week: 8, date: '2025-11-04', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+            {week: 8, date: '2025-11-05', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Parasitology - Introduction to Parasitology', staff: 'MTS', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 8, date: '2025-11-05', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Biochemistry II: Protein Structure and Function II (Primary and Secondary structure)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 8, date: '2025-11-06', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR03', module: 'BIO1314'},
+            {week: 8, date: '2025-11-06', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+            {week: 8, date: '2025-11-07', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Parasitology - Parasitic Metazoans', staff: 'MTS', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 8, date: '2025-11-07', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Biochemistry III: Protein Structure and Function III (Tertiary Structure)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            
+            //week 9
+            {week: 9, date: '2025-11-10', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Parasitology - Parasitic Protists in Humans', staff: 'MTS', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 9, date: '2025-11-10', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Biochemistry IV: Proteins and Enzymes I (The Transition State)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 9, date: '2025-11-10', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR04', module: 'BIO1314'},
+            {week: 9, date: '2025-11-10', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+            {week: 9, date: '2025-11-11', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR05', module: 'BIO1314'},
+            {week: 9, date: '2025-11-11', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+            {week: 9, date: '2025-11-12', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Mycology - General Characteristics of Fungi', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 9, date: '2025-11-12', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Biochemistry V: Proteins and Enzymes II (Kinetics)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 9, date: '2025-11-13', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Aseptic Technique', staff: 'JC', format: 'Lab', group: 'PR06', module: 'BIO1314'},
+            {week: 9, date: '2025-11-13', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'DNA Extraction', staff: 'AM', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+            {week: 9, date: '2025-11-14', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Mycology - Defining Features of Fungal Phyla', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 9, date: '2025-11-14', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Biochemistry VI: Proteins and Enzymes III (Catalytic Strategies)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            
+            //week 10
+            {week: 10, date: '2025-11-17', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Mycology - Fungi as Human Pathogens', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 10, date: '2025-11-17', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Biochemistry VII: Proteins and Enzymes V (Problem Session - <strong>bring a calculator!</strong>)', staff: 'CA', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 10, date: '2025-11-17', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR01', module: 'BIO1314'},
+            {week: 10, date: '2025-11-17', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+            {week: 10, date: '2025-11-18', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR02', module: 'BIO1314'},
+            {week: 10, date: '2025-11-18', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+            {week: 10, date: '2025-11-19', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Virology - Introduction to Virology - Importance of Viruses', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 10, date: '2025-11-19', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Lipids I: Introduction to Lipid Structure', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 10, date: '2025-11-20', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR03', module: 'BIO1314'},
+            {week: 10, date: '2025-11-20', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+            {week: 10, date: '2025-11-21', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Virology - Viral Replication, Classification and Transmission', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 10, date: '2025-11-21', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Lipids II: Phospholipids and Membranes', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            
+            //Week 11
+            {week: 11, date: '2025-11-24', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Virology - Viral Replication, Classification and Transmission - 2', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 11, date: '2025-11-24', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Introduction to Carbohydrate Structure', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 11, date: '2025-11-24', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR04', module: 'BIO1314'},
+            {week: 11, date: '2025-11-24', time: '14:00 - 17:00', location: 'Online', day: 'M', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+            {week: 11, date: '2025-11-25', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR05', module: 'BIO1314'},
+            {week: 11, date: '2025-11-25', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+            {week: 11, date: '2025-11-26', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'Virology - Response to Viral Infections', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 11, date: '2025-11-26', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Energy Metabolism I: Glycolysis and The Krebs Cycle', staff: 'CMcC', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 11, date: '2025-11-27', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Growth/Enumeration', staff: 'EH/JM', format: 'Lab', group: 'PR06', module: 'BIO1314'},
+            {week: 11, date: '2025-11-27', time: '10:00 - 13:00', location: 'Online', day: 'T', lecture: 'Enzyme Kinetics', staff: 'BG', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+            {week: 11, date: '2025-11-28', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Virology - Response to Viral Infections - 2', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 11, date: '2025-11-28', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Energy Metabolism II: Fatty acid metabolism', staff: 'CMcC', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            
+            //Week 12
+            {week: 12, date: '2025-12-01', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'M', lecture: 'Women in Microbiology', staff: 'EH', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 12, date: '2025-12-01', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'Energy Metabolism III: Oxidative Phosphorylation', staff: 'CMcC', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 12, date: '2025-12-01', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR01', module: 'BIO1103'},
+            {week: 12, date: '2025-12-01', time: '14:00 - 17:00', location: 'SBS Teaching Lab', day: 'M', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR04', module: 'BIO1103'},
+            {week: 12, date: '2025-12-02', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR02', module: 'BIO1103'},
+            {week: 12, date: '2025-12-02', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR05', module: 'BIO1103'},
+            {week: 12, date: '2025-12-03', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'W', lecture: 'COVID19 case study', staff: 'CB', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 12, date: '2025-12-03', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'W', lecture: 'Control and Regulation I: Integration of Metabolism', staff: 'BG', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 12, date: '2025-12-04', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR03', module: 'BIO1103'},
+            {week: 12, date: '2025-12-04', time: '10:00 - 13:00', location: 'SBS Teaching Lab', day: 'T', lecture: 'Report Writing Workshop II', staff: 'LA', format: 'Lab', group: 'PR06', module: 'BIO1103'},
+            {week: 12, date: '2025-12-05', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Viral testing and Viral diagnostics', staff: 'CB', format: 'Lecture', group: 'All', module: 'BIO1314'},
+            {week: 12, date: '2025-12-05', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'Control and Regulation II: Hormones & the Endocrine System', staff: 'BG', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            
+            //Week 13
+            {week: 13, date: '2025-12-08', time: '10:00 - 11:00', location: 'Various', day: 'M', lecture: 'CLASS TEST 2', staff: 'JC/JM', format: 'Assessment', group: 'All', module: 'BIO1314'},
+            {week: 13, date: '2025-12-08', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'M', lecture: 'FEEDBACK SESSION 2: PREPARATION FOR CLASS TEST 2', staff: 'AM', format: 'Lecture', group: 'All', module: 'BIO1103'},
+            {week: 13, date: '2025-12-10', time: '11:00 - 12:00', location: 'Various', day: 'W', lecture: 'CLASS TEST 2', staff: 'AM', format: 'Assessment', group: 'All', module: 'BIO1103'},
+            {week: 13, date: '2025-12-12', time: '10:00 - 11:00', location: 'Elmwood Hall', day: 'F', lecture: 'Gated Quiz', staff: 'JC/JM', format: 'Assessment', group: 'All', module: 'BIO1314'},
+            {week: 13, date: '2025-12-12', time: '11:00 - 12:00', location: 'Elmwood Hall', day: 'F', lecture: 'McGraw Hill Reading Test', staff: 'AM', format: 'Assessment', group: 'All', module: 'BIO1103'}
+            ];
+
+    // --- calendar state & helpers ---
+    let currentDate = new Date(2025, 8, 1); // September 2025 (as you had)
+    let selectedGroup = '';
+    let selectedPathway = '';
+    
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+    function updateCalendar() {
+      selectedGroup = document.getElementById('groupSelect').value;
+      selectedPathway = document.getElementById('pathwaySelect').value;
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const calendar = document.getElementById('calendar');
+      const monthYear = document.getElementById('monthYear');
+      const noSessions = document.getElementById('noSessions');
+
+      if (!selectedGroup || !selectedPathway) {
+  calendar.style.display = 'none';
+  noSessions.style.display = 'block';
+  monthYear.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  return;
+}
+
+      calendar.style.display = 'grid';
+      noSessions.style.display = 'none';
+
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+
+      monthYear.textContent = `${monthNames[month]} ${year}`;
+
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+      const firstDayWeek = firstDay.getDay();
+      const daysInMonth = lastDay.getDate();
+
+      calendar.innerHTML = '';
+
+      // Add day headers (Sun-Sat)
+      dayNames.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'day-header';
+        dayHeader.textContent = day;
+        calendar.appendChild(dayHeader);
+      });
+
+      // Add previous month's tail days
+      for (let i = 0; i < firstDayWeek; i++) {
+        const prevMonth = new Date(year, month, 0);
+        const dayNum = prevMonth.getDate() - (firstDayWeek - 1 - i);
+        const emptyDay = document.createElement('div');
+        emptyDay.className = 'day other-month';
+        emptyDay.innerHTML = `<div class="day-number">${dayNum}</div>`;
+        calendar.appendChild(emptyDay);
+      }
+
+      // Add days of current month
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'day';
+
+        // highlight today
+        const today = new Date();
+        if (year === today.getFullYear() && month === today.getMonth() && day === today.getDate()) {
+          dayElement.classList.add('today');
+        }
+
+        const dayNumber = document.createElement('div');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = day;
+        dayElement.appendChild(dayNumber);
+
+        // format current date string
+        const currentDateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        // find sessions for this date that apply to the selected group
+       const daySessions = sessionData.filter(session => {
+  if (session.date !== currentDateString) return false;
+
+  // Week 1 = filter by pathway OR 'All'
+  if (session.week === 1) {
+    return session.group === 'All' || session.group === selectedPathway;
+  }
+
+  // Week 2+ = filter by practical group OR 'All'
+  return session.group === 'All' || session.group === selectedGroup;
+});
+
+        // append sessions (apply classes: format and module)
+        daySessions.forEach(session => {
+          const sessionElement = document.createElement('div');
+          // ensure base class
+          sessionElement.className = 'session';
+
+          // add a 'lecture'/'lab'/'feedback' class based on format (lowercase)
+          const formatClass = session.format ? session.format.toLowerCase() : '';
+          if (formatClass) sessionElement.classList.add(formatClass);
+
+          // add module class like 'bio1103' or 'bio1314'
+          if (session.module) {
+            sessionElement.classList.add(session.module.toLowerCase());
+          }
+
+          // Use innerHTML to preserve simple markup in some titles (e.g. <strong>)
+          sessionElement.innerHTML = `${session.time} ${session.lecture}`;
+
+          // click opens modal with details
+          sessionElement.addEventListener('click', () => showSessionModal(session));
+          dayElement.appendChild(sessionElement);
+        });
+
+        calendar.appendChild(dayElement);
+      }
+
+      // Add next month's leading days to fill final row
+      const totalCells = Math.ceil((daysInMonth + firstDayWeek) / 7) * 7;
+      const remainingCells = totalCells - (daysInMonth + firstDayWeek);
+      for (let d = 1; d <= remainingCells; d++) {
+        const nextMonthDay = document.createElement('div');
+        nextMonthDay.className = 'day other-month';
+        nextMonthDay.innerHTML = `<div class="day-number">${d}</div>`;
+        calendar.appendChild(nextMonthDay);
+      }
+    }
+
+    // Modal functions
+    function showSessionModal(session) {
+      const modal = document.getElementById('sessionModal');
+      const modalDateTime = document.getElementById('modalDateTime');
+      const modalLecture = document.getElementById('modalLecture');
+      const modalLocation = document.getElementById('modalLocation');
+      const modalStaff = document.getElementById('modalStaff');
+      const modalModule = document.getElementById('modalModule');
+      const modalFormat = document.getElementById('modalFormat');
+      const modalWeek = document.getElementById('modalWeek');
+
+      const sessionDate = new Date(session.date);
+      const formattedDate = sessionDate.toLocaleDateString('en-GB', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      });
+
+      modalDateTime.textContent = `${formattedDate}, ${session.time}`;
+      // keep HTML rendering in the modal lecture (so <strong> etc remain)
+      document.getElementById('modalLecture').innerHTML = session.lecture;
+      modalLocation.textContent = session.location;
+      modalStaff.textContent = session.staff;
+
+      // module badge: set text and module-specific class
+      modalModule.textContent = session.module;
+      modalModule.className = 'module-badge'; // reset
+      if (session.module === 'BIO1103') modalModule.classList.add('module-bio1103');
+      if (session.module === 'BIO1314') modalModule.classList.add('module-bio1314');
+
+      modalFormat.textContent = session.format;
+      modalWeek.textContent = session.week ?? '';
+
+      modal.style.display = 'block';
+      setTimeout(() => modal.classList.add('show'), 10);
+    }
+
+    // previous / next navigation
+    function previousMonth() {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+      renderCalendar();
+    }
+
+    function nextMonth() {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+      renderCalendar();
+    }
+
+    // Modal close handlers
+    const modal = document.getElementById('sessionModal');
+    const closeBtn = document.querySelector('.close');
+    closeBtn.addEventListener('click', closeModal);
+    window.addEventListener('click', (event) => { if (event.target === modal) closeModal(); });
+    function closeModal() {
+      modal.classList.remove('show');
+      setTimeout(() => { modal.style.display = 'none'; }, 220);
+    }
+
+    // Initialize selectedGroup as blank (forces user to choose)
+    renderCalendar();
+
+    // expose updateCalendar globally because select uses onchange="updateCalendar()"
+    window.updateCalendar = updateCalendar;
+    window.previousMonth = previousMonth;
+    window.nextMonth = nextMonth;
+  </script>
+</body>
+</html>
